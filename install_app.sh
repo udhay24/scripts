@@ -48,7 +48,9 @@ sudo chown -R codex:codex /home/codex/Orbit-Edge-Codex
 echo "[INFO] Installing dependencies..." | tee -a "$LOG_FILE"
 cd /home/codex/Orbit-Edge-Codex/scripts/dependencies || { echo "[ERROR] Dependencies directory not found!" | tee -a "$LOG_FILE"; exit 1; }
 chmod +x install_deps.sh
-if ./install_deps.sh >> "$LOG_FILE" 2>&1; then
+
+# Execute the script and print logs in real-time
+if ./install_deps.sh 2>&1 | tee -a "$LOG_FILE"; then
   echo "[SUCCESS] Dependencies installed successfully!" | tee -a "$LOG_FILE"
 else
   echo "[ERROR] Failed to install dependencies." | tee -a "$LOG_FILE"
