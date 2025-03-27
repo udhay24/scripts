@@ -22,7 +22,12 @@ git config --global credential.helper store
 echo "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com" > ~/.git-credentials
 chmod 600 ~/.git-credentials  # Secure the file
 
-# Clone the repository
-git clone "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git"
+git config --global --add safe.directory /home/codex/Orbit-Edge-Codex
+
+# Clone the repository branch release/stable
+git clone --branch release/stable "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git"
+
+# Change ownership
+sudo chown -R codex:codex /home/codex/Orbit-Edge-Codex
 
 echo "Repository cloned successfully!"
