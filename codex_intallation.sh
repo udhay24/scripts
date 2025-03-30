@@ -1,30 +1,36 @@
 #!/bin/bash
 
-# Define log file
-LOG_FILE="/var/log/codex_installation.log"
-USERNAME="codex"
+set -e  # Exit on any error
+set -o pipefail  # Prevent errors in piped commands from being masked
 
-# Function to execute a command and log output
-execute_and_log() {
-    echo "Executing: $1" | tee -a "$LOG_FILE"
-    bash -c "$1" 2>&1 | tee -a "$LOG_FILE"
-    echo "-----------------------------------------" | tee -a "$LOG_FILE"
+# Log function
+log() {
+    echo -e "\n========== $1 ==========\n"
 }
 
-# Step 1: Install User
-execute_and_log "wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/create_user.sh | sudo bash"
+# Step 1: Create Codex User
+log "Creating Codex user..."
+wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/create_user.sh | sudo bash
 
-# Step 2: Grant Passwordless Sudo for Specific Commands
-echo "$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/wget, /bin/bash, /usr/bin/apt, /usr/bin/apt-get" | sudo tee /etc/sudoers.d/$USERNAME
+# Step 2: Configure Sudo for Codex (No Password)
+log "Configuring sudoers for Codex user..."
+echo "$USER ALL=(ALL) NOPASSWD: /bin/su - codex" | sudo tee /etc/sudoers.d/codex_nopasswd >/dev/null
 
-# Step 3: Switch to User and Install Mender & Application
-sudo -i -u "$USERNAME" bash <<EOF
-    # Install Mender
-    wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/install_mender_client.sh | sudo bash
+# Step 3: Switch to Codex User and Run Installations
+log "Switching to Codex user and running installations..."
+sudo -i -u codex bash << 'EOF'
 
-    # Install Application
-    sudo GIT_TOKEN=\$GIT_TOKEN bash -c 'wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/install_app.sh | bash'
+set -e
+set -o pipefail
+
+echo -e "\n========== Installing Mender ==========\n"
+wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/install_mender_client.sh | bash
+
+echo -e "\n========== Installing Application ==========\n"
+GIT_TOKEN=$GIT_TOKEN bash -c 'wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/install_app.sh | bash'
+
+echo -e "\n========== All installations completed successfully! ==========\n"
+
 EOF
 
-# Completion message
-echo "Installation process completed as user '$USERNAME'. Logs are stored in $LOG_FILE."
+log "Script execution completed!"
