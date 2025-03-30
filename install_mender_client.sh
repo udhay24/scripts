@@ -22,6 +22,6 @@ sudo mender setup \
 
 # Restart Mender servicewhen
 echo "Restarting Mender service..."
-sudo systemctl restart mender-updated
+sudo systemctl restart mender-client
 
 echo "Mender client installation and configuration complete."
