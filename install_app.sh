@@ -56,3 +56,13 @@ else
   echo "[ERROR] Failed to install dependencies." | tee -a "$LOG_FILE"
   exit 1
 fi
+
+# Print MAC address
+echo "[INFO] Retrieving MAC address..." | tee -a "$LOG_FILE"
+MAC_ADDRESS=$(ip link show | awk '/ether/ {print $2}' | head -n 1)
+
+if [ -n "$MAC_ADDRESS" ]; then
+  echo "[SUCCESS] MAC Address: $MAC_ADDRESS" | tee -a "$LOG_FILE"
+else
+  echo "[ERROR] Failed to retrieve MAC Address." | tee -a "$LOG_FILE"
+fi
