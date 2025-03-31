@@ -3,7 +3,10 @@
 # Define repository details
 GIT_USERNAME="udhay24"
 REPO_URL="https://github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git"
-LOG_FILE="/var/log/git_clone.log"
+LOG_FILE="$HOME/git_clone.log"
+
+touch "$LOG_FILE"
+chmod 666 "$LOG_FILE"
 
 # Ensure GIT_TOKEN is set
 if [ -z "$GIT_TOKEN" ]; then
@@ -26,8 +29,9 @@ fi
 echo "[INFO] Configuring Git credentials..." | tee -a "$LOG_FILE"
 git config --global credential.helper store
 
-echo "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com" > ~/.git-credentials
-chmod 600 ~/.git-credentials  # Secure the file
+echo "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com" > /home/codex/.git-credentials
+chmod 600 /home/codex/.git-credentials
+chown codex:codex /home/codex/.git-credentials
 
 git config --global --add safe.directory /home/codex/Orbit-Edge-Codex
 
