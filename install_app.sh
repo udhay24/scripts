@@ -35,12 +35,17 @@ chown codex:codex /home/codex/.git-credentials
 
 git config --global --add safe.directory /home/codex/Orbit-Edge-Codex
 
+# Delete existing Orbit-Edge-Codex directory
+echo "[INFO] Deleting existing Orbit-Edge-Codex directory..." | tee -a "$LOG_FILE"
+rm -rf /home/codex/Orbit-Edge-Codex >> "$LOG_FILE" 2>&1
+
+
 # Clone the repository
 echo "[INFO] Cloning repository from $REPO_URL..." | tee -a "$LOG_FILE"
-if git clone --branch release/stable "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" >> "$LOG_FILE" 2>&1; then
+if git clone --branch release/codex3 "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" >> "$LOG_FILE" 2>&1; then
   echo "[SUCCESS] Repository cloned successfully!" | tee -a "$LOG_FILE"
 else
-  echo "[ERROR] Failed to clone repository." | tee -a "$LOG_FILE"
+  echo "[INFO] Failed to clone repository." | tee -a "$LOG_FILE"
   exit 1
 fi
 
