@@ -40,14 +40,11 @@ if [ -d "/home/codex/Orbit-Edge-Codex/.git" ]; then
   echo "[INFO] Repository already exists. Skipping clone." | tee -a "$LOG_FILE"
   cd /home/codex/Orbit-Edge-Codex || { echo "[ERROR] Failed to enter repo directory." | tee -a "$LOG_FILE"; exit 1; }
 
-  echo "[INFO] Fetching latest changes..." | tee -a "$LOG_FILE"
-  git fetch origin >> "$LOG_FILE" 2>&1
+  echo "[INFO] Pulling latest changes from release/codex3..." | tee -a "$LOG_FILE"
+  git fetch origin 2>&1 | tee -a "$LOG_FILE"
+  git checkout release/codex3 2>&1 | tee -a "$LOG_FILE"
+  git reset --hard origin/release/codex3 2>&1 | tee -a "$LOG_FILE"
 
-  echo "[INFO] Checking out branch release/codex3..." | tee -a "$LOG_FILE"
-  git checkout release/codex3 >> "$LOG_FILE" 2>&1
-
-  echo "[INFO] Resetting local branch to match origin/release/codex3..." | tee -a "$LOG_FILE"
-  git reset --hard origin/release/codex3 >> "$LOG_FILE" 2>&1
 else
   echo "[INFO] Repository not found. Cloning..." | tee -a "$LOG_FILE"
   echo "[INFO] Cloning repository from $REPO_URL..." | tee -a "$LOG_FILE"
