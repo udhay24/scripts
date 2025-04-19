@@ -39,6 +39,8 @@ git config --global --add safe.directory /home/codex/Orbit-Edge-Codex
 if [ -d "/home/codex/Orbit-Edge-Codex" ]; then
   echo "[INFO] Repository already exists. Skipping clone." | tee -a "$LOG_FILE"
   cd /home/codex/Orbit-Edge-Codex || exit
+  git fetch >> "$LOG_FILE" 2>&1
+  git checkout release/codex3 >> "$LOG_FILE" 2>&1
 else
   echo "[INFO] Repository not found. Cloning..." | tee -a "$LOG_FILE"
   echo "[INFO] Cloning repository from $REPO_URL..." | tee -a "$LOG_FILE"
