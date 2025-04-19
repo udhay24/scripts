@@ -35,18 +35,19 @@ chown codex:codex /home/codex/.git-credentials
 
 git config --global --add safe.directory /home/codex/Orbit-Edge-Codex
 
-# Delete existing Orbit-Edge-Codex directory
-echo "[INFO] Deleting existing Orbit-Edge-Codex directory..." | tee -a "$LOG_FILE"
-rm -rf /home/codex/Orbit-Edge-Codex >> "$LOG_FILE" 2>&1
-
-
-# Clone the repository
-echo "[INFO] Cloning repository from $REPO_URL..." | tee -a "$LOG_FILE"
-if git clone --branch release/codex3 "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" >> "$LOG_FILE" 2>&1; then
-  echo "[SUCCESS] Repository cloned successfully!" | tee -a "$LOG_FILE"
+# Check if repository already exists
+if [ -d "/home/codex/Orbit-Edge-Codex" ]; then
+  echo "[INFO] Repository already exists. Skipping clone." | tee -a "$LOG_FILE"
+  cd /home/codex/Orbit-Edge-Codex || exit
 else
-  echo "[INFO] Failed to clone repository." | tee -a "$LOG_FILE"
-  exit 1
+  echo "[INFO] Repository not found. Cloning..." | tee -a "$LOG_FILE"
+  echo "[INFO] Cloning repository from $REPO_URL..." | tee -a "$LOG_FILE"
+  if git clone --branch release/codex3 "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" >> "$LOG_FILE" 2>&1; then
+    echo "[SUCCESS] Repository cloned successfully!" | tee -a "$LOG_FILE"
+  else
+    echo "[INFO] Failed to clone repository." | tee -a "$LOG_FILE"
+    exit 1
+  fi
 fi
 
 # Change ownership
