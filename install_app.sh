@@ -74,41 +74,25 @@ git config --global --add safe.directory "$PROJECT_DIR"
 
 # --- Clone or Update Repository (as codex, no sudo needed) ---
 # ... (Cloning/Update logic remains the same as previous 'codex only' version) ...
-REPO_EXISTS=false
 if [ -d "$PROJECT_DIR/.git" ]; then
-  REPO_EXISTS=true
-  echo "[INFO] Repository exists at '$PROJECT_DIR'. Updating..." | tee -a "$LOG_FILE"
-  # --- Ensure Correct Ownership (use sudo -S) ---
-  echo "[INFO] Ensuring correct ownership ('codex:codex') of '$PROJECT_DIR' (requires sudo)..." | tee -a "$LOG_FILE"
-  echo "$SUDO_PASSWORD" | sudo -S chown -R codex:codex "$PROJECT_DIR"
-  
-  cd "$PROJECT_DIR" || { echo "[ERROR] Failed to enter repo directory '$PROJECT_DIR'." | tee -a "$LOG_FILE"; exit 1; }
-
-  echo "[INFO] Fetching latest changes..." | tee -a "$LOG_FILE"
-  git fetch origin 2>&1 | tee -a "$LOG_FILE"
-  echo "[INFO] Checking out release/codex3..." | tee -a "$LOG_FILE"
-  git checkout release/codex3 2>&1 | tee -a "$LOG_FILE"
-  echo "[INFO] Resetting to remote state (origin/release/codex3)..." | tee -a "$LOG_FILE"
-  git reset --hard origin/release/codex3 2>&1 | tee -a "$LOG_FILE"
-  if [ $? -ne 0 ]; then
-      echo "[ERROR] Failed to update repository." | tee -a "$LOG_FILE"
-      exit 1
-  fi
-  echo "[SUCCESS] Repository updated successfully." | tee -a "$LOG_FILE"
-else
-  echo "[INFO] Repository not found at '$PROJECT_DIR'. Cloning..." | tee -a "$LOG_FILE"
-  if git clone --branch release/codex3 "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" "$PROJECT_DIR" >> "$LOG_FILE" 2>&1; then
-    echo "[SUCCESS] Repository cloned successfully into '$PROJECT_DIR'!" | tee -a "$LOG_FILE"
-    # --- Ensure Correct Ownership (use sudo -S) ---
-    echo "[INFO] Ensuring correct ownership ('codex:codex') of '$PROJECT_DIR' (requires sudo)..." | tee -a "$LOG_FILE"
-    echo "$SUDO_PASSWORD" | sudo -S chown -R codex:codex "$PROJECT_DIR"
-    cd "$PROJECT_DIR" || { echo "[ERROR] Failed to enter newly cloned repo directory '$PROJECT_DIR'." | tee -a "$LOG_FILE"; exit 1; }
-  else
-    echo "[ERROR] Failed to clone repository. Check logs and permissions." | tee -a "$LOG_FILE"
-    exit 1
-  fi
+  echo "[INFO] Repository exists at '$PROJECT_DIR'. Deleting and recloning..." | tee -a "$LOG_FILE"
+  rm -rf "$PROJECT_DIR"
 fi
 
+
+if git clone --branch release/codex3 "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" "$PROJECT_DIR" >> "$LOG_FILE" 2>&1; then
+  echo "[SUCCESS] Repository cloned successfully into '$PROJECT_DIR'!" | tee -a "$LOG_FILE"
+  cd "$PROJECT_DIR" || { echo "[ERROR] Failed to enter newly cloned repo directory '$PROJECT_DIR'." | tee -a "$LOG_FILE"; exit 1; }
+else
+  echo "[ERROR] Failed to clone repository. Check logs and permissions." | tee -a "$LOG_FILE"
+  exit 1
+fi
+
+
+
+# --- Ensure Correct Ownership (use sudo -S) ---
+echo "[INFO] Ensuring correct ownership ('codex:codex') of '$PROJECT_DIR' (requires sudo)..." | tee -a "$LOG_FILE"
+echo "$SUDO_PASSWORD" | sudo -S chown -R codex:codex "$PROJECT_DIR"
 
 # --- Install Dependencies (runs as codex user, but will call sudo internally) ---
 echo "[INFO] Changing to dependencies directory and running install_deps.sh..." | tee -a "$LOG_FILE"
