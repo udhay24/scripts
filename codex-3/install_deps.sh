@@ -180,7 +180,7 @@ echo "Updating system packages..."
 echo "$SUDO_PASSWORD" | sudo -S apt-get update -y
 
 # Base dependencies
-for pkg in curl gpg lsb-release libvips-dev libpng-dev libjpeg-dev libwebp-dev libexif-dev; do
+for pkg in curl gpg lsb-release; do
   if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "ok installed"; then
     echo "Installing $pkg..."
     echo "$SUDO_PASSWORD" | sudo -S apt-get install -y "$pkg" || exit 1
