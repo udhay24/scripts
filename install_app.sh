@@ -56,6 +56,10 @@ if [ -d "/home/codex/Orbit-Edge-Codex/.git" ]; then
   git checkout release/codex3 2>&1 | tee -a "$LOG_FILE"
   git reset --hard origin/release/codex3 2>&1 | tee -a "$LOG_FILE"
 
+  echo "[INFO] Removing old node_modules and package-lock.json..."
+  rm -rf node_modules package-lock.json
+  npm cache clean --force
+
 else
   echo "[INFO] Repository not found. Cloning..." | tee -a "$LOG_FILE"
   echo "[INFO] Cloning repository from $REPO_URL..." | tee -a "$LOG_FILE"
