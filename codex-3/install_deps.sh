@@ -235,6 +235,7 @@ corepack enable
 # Install pnpm using corepack
 echo "Installing pnpm with corepack..."
 corepack prepare pnpm@latest --activate
+pnpm setup
 
 # --- Application Setup ---
 PROJECT_ROOT="/home/codex/Orbit-Edge-Codex"
