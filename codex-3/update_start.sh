@@ -8,11 +8,12 @@ export NVM_DIR="$HOME/.nvm"
 # Log files
 LOG_START="/home/codex/update_start.log"
 ERROR_LOG="/home/codex/update_error.log"
+EXIT_LOG="/home/codex/startprod_exits.log"  # Track service exits
 
 # Project config
 BRANCH="release/codex3"
 PROJECT_DIR="/home/codex/Orbit-Edge-Codex"
-LOCAL_VERSION_PATH="/home/codex/.orbit-edge-persistent/LOCAL_VERSION"  # Version storage location
+LOCAL_VERSION_PATH="/home/codex/.orbit-edge-persistent/LOCAL_VERSION"
 
 # Diagnostic Logging
 {
@@ -22,67 +23,105 @@ LOCAL_VERSION_PATH="/home/codex/.orbit-edge-persistent/LOCAL_VERSION"  # Version
   echo "PATH: $PATH"
   echo "Which node: $(which node)"
   echo "Node version: $(node -v)"
-  echo "Which npm: $(which npm)"
-  echo "npm version: $(npm -v)"
+  echo "Which pnpm: $(which pnpm)"
+  echo "pnpm version: $(pnpm -v)"
   echo "--- End NVM Diagnostics ---"
 } >> "$LOG_START"
 
 # Version comparison function
 check_versions() {
-    # Get remote version
     REMOTE_VERSION=$(curl -s https://raw.githubusercontent.com/udhay24/scripts/main/VERSION | tr -d '[:space:]')
-    if [ $? -ne 0 ]; then
-        echo "ERROR: Failed to fetch remote version" >> "$LOG_START"
-        return 1 # Force update if we can't check version
-    fi
+    [ $? -ne 0 ] && return 1
 
-    # Get local version from external file
     if [ -f "$LOCAL_VERSION_PATH" ]; then
         LOCAL_VERSION=$(cat "$LOCAL_VERSION_PATH" | tr -d '[:space:]')
     else
-        echo "WARNING: Local VERSION file not found at $LOCAL_VERSION_PATH" >> "$LOG_START"
-        return 1 # Force update if no local version
-    fi
-
-    # Compare versions
-    if [ "$LOCAL_VERSION" == "$REMOTE_VERSION" ]; then
-        echo "Version match ($LOCAL_VERSION). Skipping update." >> "$LOG_START"
-        return 0
-    else
-        echo "Version mismatch (Local: $LOCAL_VERSION, Remote: $REMOTE_VERSION). Update required." >> "$LOG_START"
         return 1
     fi
+
+    [ "$LOCAL_VERSION" == "$REMOTE_VERSION" ] && return 0 || return 1
 }
 
-# Check if update is needed
-if check_versions; then
-    echo "Starting existing version" >> "$LOG_START"
-    cd "$PROJECT_DIR" || exit 1
-    npm run start:prod || exit 1
-fi
+# Exit monitoring functions
+check_exits() {
+  current_time=$(date +%s)
+  five_minutes_ago=$((current_time - 300))
 
-# Update process
+  # Clean old entries
+  if [ -f "$EXIT_LOG" ]; then
+    temp_file=$(mktemp)
+    awk -v cutoff=$five_minutes_ago '$1 > cutoff' "$EXIT_LOG" > "$temp_file"
+    mv "$temp_file" "$EXIT_LOG"
+  fi
+
+  # Count remaining entries
+  count=0
+  if [ -f "$EXIT_LOG" ]; then
+    count=$(wc -l < "$EXIT_LOG")
+  fi
+
+  [ $count -ge 3 ] && return 0 || return 1
+}
+
+run_start_prod() {
+  echo "Starting production server..."
+  cd "$PROJECT_DIR" || return 1
+  pnpm run start:prod
+  EXIT_CODE=$?
+
+  if [ $EXIT_CODE -ne 0 ]; then
+    echo "$(date +%s)" >> "$EXIT_LOG"
+
+    if check_exits; then
+      {
+        echo "--- CRITICAL SERVICE FAILURE ---"
+        echo "Service exited 3 times within 5 minutes"
+        echo "Initiating recovery at $(date)"
+      } >> "$ERROR_LOG"
+
+      # Spawn recovery process
+      (
+        echo "Stopping service..." >> "$ERROR_LOG"
+        echo "codex" | sudo -S systemctl stop orbit-edge-codex.service
+
+        echo "Running reinstallation..." >> "$ERROR_LOG"
+        bash -c 'wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/codex-3/install_app.sh | bash' >> "$ERROR_LOG" 2>&1
+
+        echo "Killing parent process..." >> "$ERROR_LOG"
+        kill -9 $$
+      ) &
+    fi
+    return 1
+  fi
+  return 0
+}
+
+ # Update process
 echo "Downloading and executing startup patch script..."
-curl -s https://raw.githubusercontent.com/udhay24/scripts/main/startup_patch.sh | tee /dev/tty | bash
+curl -s https://raw.githubusercontent.com/udhay24/scripts/main/startup_patch.sh | bash
 
 echo "Navigating to project directory..."
 cd "$PROJECT_DIR" || exit 1
 
-echo "Resetting git state..."
-git reset --hard || exit 1
+# Main execution flow
+if check_versions; then
+  echo "Starting existing version" >> "$LOG_START"
+else
+  echo "Resetting git state..."
+  git reset --hard || exit 1
 
-echo "Checking out and pulling branch $BRANCH..."
-git checkout "$BRANCH" || exit 1
-git pull origin "$BRANCH" || exit 1
+  echo "Checking out and pulling branch $BRANCH..."
+  git checkout "$BRANCH" || exit 1
+  git pull origin "$BRANCH" || exit 1
 
-echo "Cleaning and installing dependencies..."
-rm -rf node_modules package-lock.json || exit 1
-npm cache clean --force || exit 1
-npm install || exit 1
+  echo "Cleaning and installing dependencies..."
+  rm -rf node_modules pnpm-lock.yaml || exit 1
+  pnpm store prune || exit 1
+  pnpm install || exit 1
 
-echo "Building the application..."
-npm run build || exit 1
+  echo "Building the application..."
+  pnpm run build || exit 1
+fi
 
-
-echo "Starting production server..."
-npm run start:prod || exit 1
+# Start service with monitoring
+run_start_prod || exit 1
