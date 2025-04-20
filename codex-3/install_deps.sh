@@ -290,7 +290,8 @@ MEDIA_SCRIPT_PATH="/tmp/install_media_server.sh"
 echo "Installing media server from GitHub..."
 curl -fsSL "$MEDIA_SERVER_URL" -o "$MEDIA_SCRIPT_PATH" || exit 1
 chmod +x "$MEDIA_SCRIPT_PATH"
-echo "$SUDO_PASSWORD" | sudo -S -u codex bash -c "$MEDIA_SCRIPT_PATH" || exit 1
+# Run the script as root to avoid nested sudo
+echo "$SUDO_PASSWORD" | sudo -S bash "$MEDIA_SCRIPT_PATH" || exit 1
 rm -f "$MEDIA_SCRIPT_PATH"
 
 # --- Final Systemd Setup ---
