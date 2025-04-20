@@ -40,7 +40,7 @@ chmod 644 "${ROOT_DIR}/mediamtx.yml"
 
 # Create systemd service
 echo "Creating systemd service..."
-echo -n "$SUDO_PASSWORD" | sudo -S bash -c "cat > /etc/systemd/system/${SERVICE_NAME}" <<EOL
+echo "$SUDO_PASSWORD" | sudo -S bash -c "cat > /etc/systemd/system/${SERVICE_NAME}" <<EOL
 [Unit]
 Description=Orbit Play Media Server
 After=network.target
@@ -61,11 +61,11 @@ EOL
 # Systemd management
 echo "Configuring service..."
 {
-    echo -n "$SUDO_PASSWORD" | sudo -S systemctl daemon-reload
-    echo -n "$SUDO_PASSWORD" | sudo -S systemctl enable "${SERVICE_NAME}"
-    echo -n "$SUDO_PASSWORD" | sudo -S systemctl restart "${SERVICE_NAME}"
+    echo "$SUDO_PASSWORD" | sudo -S systemctl daemon-reload
+    echo "$SUDO_PASSWORD" | sudo -S systemctl enable "${SERVICE_NAME}"
+    echo "$SUDO_PASSWORD" | sudo -S systemctl restart "${SERVICE_NAME}"
 } > /dev/null 2>&1
 
 echo "Installation complete!"
 echo "Service status:"
-echo -n "$SUDO_PASSWORD" | sudo -S systemctl status "${SERVICE_NAME}" --no-pager
+echo "$SUDO_PASSWORD" | sudo -S systemctl status "${SERVICE_NAME}" --no-pager
