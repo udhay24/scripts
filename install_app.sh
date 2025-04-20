@@ -73,11 +73,19 @@ git config --global --add safe.directory "$PROJECT_DIR"
 
 
 # --- Clone or Update Repository (as codex, no sudo needed) ---
-# ... (Cloning/Update logic remains the same as previous 'codex only' version) ...
 if [ -d "$PROJECT_DIR/.git" ]; then
-  echo "[INFO] Repository exists at '$PROJECT_DIR'. Deleting and recloning..." | tee -a "$LOG_FILE"
-  rm -rf "$PROJECT_DIR"
+  echo "[INFO] Repository exists at '$PROJECT_DIR'. Checking integrity..." | tee -a "$LOG_FILE"
+  cd "$PROJECT_DIR" || { echo "[ERROR] Failed to cd into $PROJECT_DIR"; exit 1; }
+
+  if ! git fsck --full > /dev/null 2>&1; then
+    echo "[WARNING] Git repository is corrupted. Deleting and recloning..." | tee -a "$LOG_FILE"
+    cd /home/codex
+    rm -rf "$PROJECT_DIR"
+  else
+    echo "[INFO] Git repository is healthy." | tee -a "$LOG_FILE"
+  fi
 fi
+
 
 
 if git clone --branch release/codex3 "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/Smart-Stream-Technologies/Orbit-Edge-Codex.git" "$PROJECT_DIR" >> "$LOG_FILE" 2>&1; then
