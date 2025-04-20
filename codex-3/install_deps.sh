@@ -231,14 +231,17 @@ source "$NVM_DIR/nvm.sh"
 nvm install --lts
 nvm use --lts
 corepack enable
-corepack prepare npm@latest --activate
+
+# Install pnpm using corepack
+echo "Installing pnpm with corepack..."
+corepack prepare pnpm@latest --activate
 
 # --- Application Setup ---
 PROJECT_ROOT="/home/codex/Orbit-Edge-Codex"
 cd "$PROJECT_ROOT" || exit 1
 
 if [ -f package.json ]; then
-  echo "Installing Node.js dependencies..."
+  echo "Installing Node.js dependencies with pnpm..."
   echo "$SUDO_PASSWORD" | sudo -S -u codex bash -c "
     export NVM_DIR=\"/home/codex/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && source \"\$NVM_DIR/nvm.sh\"
@@ -248,12 +251,9 @@ if [ -f package.json ]; then
     attempt=0
 
     cleanup() {
-        echo 'Cleaning up npm artifacts...'
-        GLOBAL_NPM_DIR=\$(npm config get prefix 2>/dev/null)/lib/node_modules
-        SAFE_PKG_NAME=\$(echo \"\$pkg\" | sed 's|@||;s|/|-|')  # handle scoped packages
-        rm -rf \"\$GLOBAL_NPM_DIR/\$pkg\" \"\$GLOBAL_NPM_DIR/.\$SAFE_PKG_NAME\"* || true
-        rm -rf node_modules package-lock.json .npm .npmrc
-        npm cache clean --force
+        echo 'Cleaning up pnpm artifacts...'
+        rm -rf node_modules .pnpm-store pnpm-lock.yaml
+        pnpm store prune
     }
 
     while [ \$attempt -lt \$max_retries ]; do
@@ -261,14 +261,14 @@ if [ -f package.json ]; then
         echo \"Installation attempt \$attempt/\$max_retries\"
 
         # Global packages
-        npm install -g husky is-ci @nestjs/cli rimraf || {
+        pnpm add -g husky is-ci @nestjs/cli rimraf || {
             echo 'Global package installation failed'
             cleanup
             continue
         }
 
         # Local packages
-        npm install || {
+        pnpm install || {
             echo 'Local package installation failed'
             cleanup
             continue
@@ -276,14 +276,13 @@ if [ -f package.json ]; then
 
         # Build packages
         echo 'Building packages...'
-        npm run build && {
+        pnpm run build && {
             echo 'Project build successfully'
             break
         }
 
-
         # Cleanup if installation failed
-        echo 'npm install failed, cleaning up...'
+        echo 'pnpm install failed, cleaning up...'
         cleanup
 
         if [ \$attempt -eq \$max_retries ]; then
@@ -292,7 +291,7 @@ if [ -f package.json ]; then
         fi
     done
   " || {
-    echo "[FATAL] Failed to install npm dependencies after multiple attempts"
+    echo "[FATAL] Failed to install pnpm dependencies after multiple attempts"
     exit 1
   }
 fi
