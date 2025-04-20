@@ -270,6 +270,13 @@ if [ -f package.json ]; then
             break
         }
 
+        # Build packages
+        npm run build || {
+            echo 'Build failed'
+            cleanup
+            continue
+        }
+
         # Cleanup if installation failed
         echo 'npm install failed, cleaning up...'
         cleanup
