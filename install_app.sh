@@ -8,6 +8,8 @@ LOG_FILE="$HOME/git_clone.log"
 touch "$LOG_FILE"
 chmod 666 "$LOG_FILE"
 
+echo codex | sudo -S echo
+
 # Ensure GIT_TOKEN is set
 if [ -z "$GIT_TOKEN" ]; then
   echo "[ERROR] GIT_TOKEN environment variable is not set!" | tee -a "$LOG_FILE"
