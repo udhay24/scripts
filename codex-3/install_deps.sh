@@ -237,6 +237,8 @@ echo "Installing pnpm with corepack..."
 corepack prepare pnpm@latest --activate
 pnpm setup
 source /home/codex/.bashrc
+export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
+export PATH="$PNPM_HOME:$PATH"
 
 # --- Application Setup ---
 PROJECT_ROOT="/home/codex/Orbit-Edge-Codex"
@@ -248,6 +250,10 @@ if [ -f package.json ]; then
     export NVM_DIR=\"/home/codex/.nvm\"
     [ -s \"\$NVM_DIR/nvm.sh\" ] && source \"\$NVM_DIR/nvm.sh\"
     nvm use --lts
+
+    # Add pnpm environment setup
+    export PNPM_HOME=\"/home/codex/.local/share/pnpm\"
+    export PATH=\"\$PNPM_HOME:\$PATH\"
 
     max_retries=2
     attempt=0
