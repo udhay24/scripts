@@ -78,12 +78,15 @@ chmod +x "$PERSISTENT_SCRIPTS_DIR/restart-counter.sh"
 cat > /tmp/orbit-edge-service.tmp << EOF
 [Unit]
 Description=Orbit-Edge Codex Application
-After=network.target redis-server.service
+After=network-online.target redis-server.service
+Wants=network-online.target
 
 [Service]
 WorkingDirectory=/home/codex/Orbit-Edge-Codex
+ExecStartPre=/usr/bin/sleep 3
 ExecStart=/bin/bash -c 'curl -fsSL $UPDATE_START_URL | bash -s'
 Restart=always
+RestartSec=5
 User=codex
 Group=codex
 Environment="NODE_ENV=production"
