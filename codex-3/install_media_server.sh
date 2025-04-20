@@ -5,12 +5,6 @@ set -e
 SUDO_PASSWORD="codex"  # Replace with your actual password if different
 # --- END WARNING ---
 
-# User enforcement
-if [ "$(whoami)" != "codex" ]; then
-    echo "This script must be run as codex user" >&2
-    exit 1
-fi
-
 # Configuration
 ROOT_DIR="/home/codex/orbit-play"
 DOWNLOAD_URL="https://github.com/bluenviron/mediamtx/releases/download/v1.11.0/mediamtx_v1.11.0_linux_armv7.tar.gz"
