@@ -9,7 +9,7 @@ DOWNLOAD_URL="https://github.com/bluenviron/mediamtx/releases/download/v1.11.0/m
 TAR_FILE="mediamtx_v1.11.0_linux_armv7.tar.gz"
 SERVICE_NAME="orbit-play.service"
 BINARY_NAME="mediamtx"
-CONFIG_FILE="mediamtx.yml"
+CONFIG_FILE_URL="https://raw.githubusercontent.com/udhay24/scripts/main/mediamtx.yml"
 SCRIPT_DIR="$(pwd)"  # Store the current directory where the script is running
 
 # Create the folder from root
@@ -33,13 +33,13 @@ if [ -f "$TAR_FILE" ]; then
     sudo tar -xzf "$TAR_FILE"
 fi
 
-# Copy the configuration file from script directory to the media server folder
-if [ -f "$SCRIPT_DIR/$CONFIG_FILE" ]; then
-    echo "Copying $CONFIG_FILE to $ROOT_DIR"
-    sudo cp "$SCRIPT_DIR/$CONFIG_FILE" "$ROOT_DIR/$CONFIG_FILE"
-    echo "Configuration file copied successfully"
+# Download the configuration file from GitHub
+echo "Downloading $CONFIG_FILE_URL from GitHub"
+sudo wget $SERVICE_NAME -O "$ROOT_DIR/$CONFIG_FILE"
+if [ -f "$ROOT_DIR/$CONFIG_FILE" ]; then
+    echo "Configuration file downloaded successfully"
 else
-    echo "Warning: $CONFIG_FILE not found in script directory!"
+    echo "Error: Failed to download $CONFIG_FILE!"
     exit 1
 fi
 
