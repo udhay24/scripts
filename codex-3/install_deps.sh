@@ -286,13 +286,9 @@ if [ -f package.json ]; then
 fi
 
 # --- Media Server Installation ---
-MEDIA_SCRIPT_PATH="/tmp/install_media_server.sh"
 echo "Installing media server from GitHub..."
-curl -fsSL "$MEDIA_SERVER_URL" -o "$MEDIA_SCRIPT_PATH" || exit 1
-chmod +x "$MEDIA_SCRIPT_PATH"
 # Run the script as root to avoid nested sudo
-echo "$SUDO_PASSWORD" | sudo -S bash "$MEDIA_SCRIPT_PATH" || exit 1
-rm -f "$MEDIA_SCRIPT_PATH"
+echo "$SUDO_PASSWORD" | sudo -S bash -c "bash <(curl -fsSL $MEDIA_SERVER_URL)" || exit 1
 
 # --- Final Systemd Setup ---
 echo "$SUDO_PASSWORD" | sudo -S systemctl daemon-reload
