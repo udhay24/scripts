@@ -8,7 +8,16 @@ LOG_FILE="$HOME/git_clone.log"
 touch "$LOG_FILE"
 chmod 666 "$LOG_FILE"
 
-echo codex | sudo -S echo
+# Store password for reuse throughout the script
+SUDO_PASSWORD="codex"
+
+# Pre-authenticate sudo and keep it alive throughout the script
+echo "$SUDO_PASSWORD" | sudo -S echo "Sudo authentication successful" | tee -a "$LOG_FILE"
+# Keep sudo session alive in background
+(while true; do echo "$SUDO_PASSWORD" | sudo -S echo "" > /dev/null 2>&1; sleep 60; done) &
+KEEP_SUDO_PID=$!
+# Make sure to kill the background process when the script exits
+trap "kill $KEEP_SUDO_PID 2>/dev/null" EXIT
 
 # Ensure GIT_TOKEN is set
 if [ -z "$GIT_TOKEN" ]; then
