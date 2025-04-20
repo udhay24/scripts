@@ -29,7 +29,6 @@ LOCAL_VERSION_PATH="/home/codex/.orbit-edge-persistent/LOCAL_VERSION"
 } >> "$LOG_START"
 
 # Version comparison function
-# Version comparison function
 check_versions() {
     echo "--- Version Check ---" | tee -a "$LOG_START"
 
