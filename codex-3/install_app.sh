@@ -9,7 +9,7 @@ BRANCH="release/codex3"
 PROJECT_DIR="/home/codex/Orbit-Edge-Codex"
 TEMP_DIR="/home/codex/Orbit-Edge-Codex-TMP"
 LOG_FILE="/home/codex/git_clone.log"
-DEPS_SCRIPT_PATH="$PROJECT_DIR/scripts/dependencies/install_deps.sh"
+DEPS_REMOTE_URL="https://raw.githubusercontent.com/udhay24/scripts/main/codex-3/install_deps.sh"
 GIT_CRED_FILE="/home/codex/.git-credentials"
 
 # === Start ===
@@ -89,16 +89,30 @@ fi
 # === Ownership Fix ===
 echo "$SUDO_PASSWORD" | sudo -S chown -R codex:codex "$PROJECT_DIR"
 
-# === Dependency Install ===
-echo "[INFO] Running install_deps.sh..." | tee -a "$LOG_FILE"
-if [ -f "$DEPS_SCRIPT_PATH" ]; then
-  cd "$(dirname "$DEPS_SCRIPT_PATH")" || exit
-  chmod +x install_deps.sh
+# === Run Dependencies Script Directly ===
+echo "[INFO] Running install_deps.sh directly from remote URL..." | tee -a "$LOG_FILE"
+
+# Make sure we have curl or wget
+if command -v curl &> /dev/null; then
+  echo "[INFO] Using curl to execute remote script..." | tee -a "$LOG_FILE"
   export SUDO_PASSWORD="$SUDO_PASSWORD"
-  ./install_deps.sh 2>&1 | tee -a "$LOG_FILE"
+  curl -s "$DEPS_REMOTE_URL" | bash 2>&1 | tee -a "$LOG_FILE"
+  SCRIPT_EXIT_CODE=${PIPESTATUS[1]}
 else
-  echo "[ERROR] Dependency script not found at $DEPS_SCRIPT_PATH" | tee -a "$LOG_FILE"
+  echo "[INFO] Neither curl nor wget found. Installing curl..." | tee -a "$LOG_FILE"
+  echo "$SUDO_PASSWORD" | sudo -S apt update >> "$LOG_FILE" 2>&1
+  echo "$SUDO_PASSWORD" | sudo -S apt install curl -y >> "$LOG_FILE" 2>&1
+
+  export SUDO_PASSWORD="$SUDO_PASSWORD"
+  curl -s "$DEPS_REMOTE_URL" | bash 2>&1 | tee -a "$LOG_FILE"
+  SCRIPT_EXIT_CODE=${PIPESTATUS[1]}
+fi
+
+if [ $SCRIPT_EXIT_CODE -ne 0 ]; then
+  echo "[ERROR] Dependencies installation script failed with exit code $SCRIPT_EXIT_CODE" | tee -a "$LOG_FILE"
   exit 1
+else
+  echo "[SUCCESS] Dependencies installation completed successfully" | tee -a "$LOG_FILE"
 fi
 
 # === MAC Address ===
