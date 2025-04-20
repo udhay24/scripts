@@ -18,8 +18,6 @@ echo "--- Starting dependency setup script (install_deps.sh) at $(date) ---"
 
 # Configuration paths
 PERSISTENT_SCRIPTS_DIR="/home/codex/.orbit-edge-persistent"
-CRASH_COUNT_FILE="/home/codex/orbit-edge-codex.crash_count"
-LAST_CRASH_TIME_FILE="/home/codex/orbit-edge-codex.last_crash_time"
 
 # Remote script URLs
 UPDATE_START_URL="https://raw.githubusercontent.com/udhay24/scripts/main/codex-3/update_start.sh"
@@ -27,8 +25,6 @@ MEDIA_SERVER_URL="https://raw.githubusercontent.com/udhay24/scripts/main/codex-3
 
 # Systemd configuration
 SERVICE_FILE="/etc/systemd/system/orbit-edge-codex.service"
-CRASH_MONITOR_SERVICE="/etc/systemd/system/orbit-edge-codex-crash-monitor.service"
-CRASH_MONITOR_TIMER="/etc/systemd/system/orbit-edge-codex-crash-monitor.timer"
 
 # --- Helper Functions ---
 safe_download() {
@@ -55,24 +51,6 @@ safe_download() {
 mkdir -p "$PERSISTENT_SCRIPTS_DIR"
 echo "$SUDO_PASSWORD" | sudo -S chown codex:codex "$PERSISTENT_SCRIPTS_DIR"
 
-# Create crash tracking files
-echo "$SUDO_PASSWORD" | sudo -S touch "$CRASH_COUNT_FILE" "$LAST_CRASH_TIME_FILE"
-echo "$SUDO_PASSWORD" | sudo -S chown codex:codex "$CRASH_COUNT_FILE" "$LAST_CRASH_TIME_FILE"
-
-# --- Crash Management System ---
-cat > "$PERSISTENT_SCRIPTS_DIR/restart-counter.sh" << 'EOF'
-#!/bin/bash
-CRASH_COUNT_FILE="/home/codex/orbit-edge-codex.crash_count"
-LAST_CRASH_TIME_FILE="/home/codex/orbit-edge-codex.last_crash_time"
-
-(
-  flock -x 200
-  current_count=$(cat "$CRASH_COUNT_FILE" 2>/dev/null || echo 0)
-  echo $((current_count + 1)) > "$CRASH_COUNT_FILE"
-  date +%s > "$LAST_CRASH_TIME_FILE"
-) 200>/var/lock/orbit-edge-crash.lock
-EOF
-chmod +x "$PERSISTENT_SCRIPTS_DIR/restart-counter.sh"
 
 # --- Systemd Service Configuration ---
 cat > /tmp/orbit-edge-service.tmp << EOF
@@ -96,87 +74,6 @@ OnFailure=orbit-edge-codex-crash-monitor.service
 WantedBy=multi-user.target
 EOF
 echo "$SUDO_PASSWORD" | sudo -S mv /tmp/orbit-edge-service.tmp "$SERVICE_FILE"
-
-# Update the crash monitor script in $PERSISTENT_SCRIPTS_DIR/crash_monitor.sh
-cat > "$PERSISTENT_SCRIPTS_DIR/crash_monitor.sh" << 'EOF'
-#!/bin/bash
-
-# Configuration
-MAX_CRASHES=2
-TIME_WINDOW=600  # 10 minutes in seconds
-CRASH_COUNT_FILE="/home/codex/orbit-edge-codex.crash_count"
-LAST_CRASH_TIME_FILE="/home/codex/orbit-edge-codex.last_crash_time"
-INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/udhay24/scripts/main/codex-3/install_deps.sh"
-LOCK_FILE="/var/lock/orbit-edge-crash.lock"
-
-# Use file descriptor 200 for locking
-exec 200>"$LOCK_FILE"
-flock -x 200
-
-# Read crash data
-current_count=$(cat "$CRASH_COUNT_FILE" 2>/dev/null || echo 0)
-last_crash_time=$(cat "$LAST_CRASH_TIME_FILE" 2>/dev/null || echo 0)
-current_time=$(date +%s)
-
-# Calculate time difference
-time_diff=$((current_time - last_crash_time))
-
-# Check if we're in the monitoring time window
-if [ "$current_count" -ge "$MAX_CRASHES" ] && [ "$time_diff" -le "$TIME_WINDOW" ]; then
-    echo "Critical failure threshold reached ($MAX_CRASHES crashes in ${TIME_WINDOW}s). Initiating reinstallation..."
-
-    # Reset crash counter
-    echo 0 > "$CRASH_COUNT_FILE"
-
-    # Stop the service
-    sudo systemctl stop orbit-edge-codex
-    sudo systemctl disable orbit-edge-codex
-
-    # Reinstall from remote script
-    echo "Starting fresh installation..."
-    curl -fsSL "$INSTALL_SCRIPT_URL" | sudo -u codex bash -s --
-
-    # Exit without restarting to prevent loop
-    exit 0
-elif [ "$time_diff" -gt "$TIME_WINDOW" ]; then
-    # Reset counter if outside time window
-    echo 0 > "$CRASH_COUNT_FILE"
-fi
-
-# Normal crash handling
-echo $((current_count + 1)) > "$CRASH_COUNT_FILE"
-echo "$current_time" > "$LAST_CRASH_TIME_FILE"
-
-# Release lock
-flock -u 200
-EOF
-
-# --- Crash Monitor Systemd Units ---
-cat > /tmp/crash-monitor.service << EOF
-[Unit]
-Description=Orbit Edge Crash Recovery Service
-
-[Service]
-Type=oneshot
-ExecStart=$PERSISTENT_SCRIPTS_DIR/crash_monitor.sh
-User=codex
-EOF
-
-cat > /tmp/crash-monitor.timer << EOF
-[Unit]
-Description=Orbit Edge Crash Recovery Timer
-
-[Timer]
-OnBootSec=1min
-OnUnitActiveSec=1min
-AccuracySec=1s
-
-[Install]
-WantedBy=timers.target
-EOF
-
-echo "$SUDO_PASSWORD" | sudo -S mv /tmp/crash-monitor.service "$CRASH_MONITOR_SERVICE"
-echo "$SUDO_PASSWORD" | sudo -S mv /tmp/crash-monitor.timer "$CRASH_MONITOR_TIMER"
 
 # --- Dependency Installation ---
 echo "Updating system packages..."
@@ -311,7 +208,7 @@ echo "$SUDO_PASSWORD" | sudo -S bash -c "bash <(curl -fsSL $MEDIA_SERVER_URL)" |
 
 # --- Final Systemd Setup ---
 echo "$SUDO_PASSWORD" | sudo -S systemctl daemon-reload
-echo "$SUDO_PASSWORD" | sudo -S systemctl enable orbit-edge-codex orbit-edge-codex-crash-monitor.timer
-echo "$SUDO_PASSWORD" | sudo -S systemctl restart orbit-edge-codex orbit-edge-codex-crash-monitor.timer
+echo "$SUDO_PASSWORD" | sudo -S systemctl enable orbit-edge-codex
+echo "$SUDO_PASSWORD" | sudo -S systemctl restart orbit-edge-codex
 
 echo "--- Dependency setup completed at $(date) ---"
