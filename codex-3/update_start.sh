@@ -68,13 +68,6 @@ curl -s https://raw.githubusercontent.com/udhay24/scripts/main/startup_patch.sh 
 echo "Navigating to project directory..."
 cd "$PROJECT_DIR" || exit 1
 
-echo "Resetting git state..."
-git reset --hard || exit 1
-
-echo "Checking out and pulling branch $BRANCH..."
-git checkout "$BRANCH" || exit 1
-git pull origin "$BRANCH" || exit 1
-
 # Store remote version directly instead of copying from project
 echo "Fetching and storing remote version to $LOCAL_VERSION_PATH"
 REMOTE_VERSION=$(curl -s https://raw.githubusercontent.com/udhay24/scripts/main/VERSION | tr -d '[:space:]')
@@ -86,6 +79,13 @@ else
     echo "ERROR: Failed to fetch remote version for storage"
     exit 1
 fi
+
+echo "Resetting git state..."
+git reset --hard || exit 1
+
+echo "Checking out and pulling branch $BRANCH..."
+git checkout "$BRANCH" || exit 1
+git pull origin "$BRANCH" || exit 1
 
 echo "Cleaning and installing dependencies..."
 rm -rf node_modules package-lock.json || exit 1
