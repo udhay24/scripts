@@ -121,6 +121,17 @@ else
 
   echo "Building the application..."
   pnpm run build || exit 1
+
+  echo "Fetching and storing remote version to $LOCAL_VERSION_PATH"
+  REMOTE_VERSION=$(curl -s https://raw.githubusercontent.com/udhay24/scripts/main/VERSION | tr -d '[:space:]')
+  if [ $? -eq 0 ] && [ -n "$REMOTE_VERSION" ]; then
+      mkdir -p "$(dirname "$LOCAL_VERSION_PATH")"
+      echo "$REMOTE_VERSION" > "$LOCAL_VERSION_PATH" || exit 1
+      echo "Stored version: $REMOTE_VERSION"
+  else
+      echo "ERROR: Failed to fetch remote version for storage"
+      exit 1
+  fi
 fi
 
 # Start service with monitoring
