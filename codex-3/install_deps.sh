@@ -268,6 +268,7 @@ if [ -f package.json ]; then
         npm install
 
         # Build packages
+        echo 'Building packages...'
         npm run build || {
             echo 'Build failed'
             cleanup
