@@ -300,6 +300,6 @@ echo "$SUDO_PASSWORD" | sudo -S bash -c "bash <(curl -fsSL $MEDIA_SERVER_URL)" |
 # --- Final Systemd Setup ---
 echo "$SUDO_PASSWORD" | sudo -S systemctl daemon-reload
 echo "$SUDO_PASSWORD" | sudo -S systemctl enable orbit-edge-codex orbit-edge-codex-crash-monitor.timer
-echo "$SUDO_PASSWORD" | sudo -S systemctl start orbit-edge-codex orbit-edge-codex-crash-monitor.timer
+echo "$SUDO_PASSWORD" | sudo -S systemctl restart orbit-edge-codex orbit-edge-codex-crash-monitor.timer
 
 echo "--- Dependency setup completed at $(date) ---"
