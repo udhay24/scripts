@@ -29,18 +29,34 @@ LOCAL_VERSION_PATH="/home/codex/.orbit-edge-persistent/LOCAL_VERSION"
 } >> "$LOG_START"
 
 # Version comparison function
+# Version comparison function
 check_versions() {
+    echo "--- Version Check ---" | tee -a "$LOG_START"
+
     REMOTE_VERSION=$(curl -s https://raw.githubusercontent.com/udhay24/scripts/main/VERSION | tr -d '[:space:]')
-    [ $? -ne 0 ] && return 1
+    if [ $? -ne 0 ] || [ -z "$REMOTE_VERSION" ]; then
+        echo "Failed to fetch remote version" | tee -a "$LOG_START"
+        return 1
+    fi
+    echo "Remote version: $REMOTE_VERSION" | tee -a "$LOG_START"
 
     if [ -f "$LOCAL_VERSION_PATH" ]; then
         LOCAL_VERSION=$(cat "$LOCAL_VERSION_PATH" | tr -d '[:space:]')
+        echo "Local version: $LOCAL_VERSION" | tee -a "$LOG_START"
     else
+        echo "Local version file not found: $LOCAL_VERSION_PATH" | tee -a "$LOG_START"
         return 1
     fi
 
-    [ "$LOCAL_VERSION" == "$REMOTE_VERSION" ] && return 0 || return 1
+    if [ "$LOCAL_VERSION" == "$REMOTE_VERSION" ]; then
+        echo "✅ Versions match. No update needed." | tee -a "$LOG_START"
+        return 0
+    else
+        echo "⚠️  Version mismatch. Update required." | tee -a "$LOG_START"
+        return 1
+    fi
 }
+
 
 # Exit monitoring functions
 check_exits() {

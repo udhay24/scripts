@@ -158,7 +158,7 @@ if [ -f package.json ]; then
     cleanup() {
         echo 'Cleaning up pnpm artifacts...'
         rm -rf node_modules .pnpm-store pnpm-lock.yaml
-        pnpm store prune
+        pnpm store prune || echo "Warning: pnpm store prune failed, continuing anyway"
     }
 
     while [ \$attempt -lt \$max_retries ]; do
