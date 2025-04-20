@@ -68,18 +68,6 @@ curl -s https://raw.githubusercontent.com/udhay24/scripts/main/startup_patch.sh 
 echo "Navigating to project directory..."
 cd "$PROJECT_DIR" || exit 1
 
-# Store remote version directly instead of copying from project
-echo "Fetching and storing remote version to $LOCAL_VERSION_PATH"
-REMOTE_VERSION=$(curl -s https://raw.githubusercontent.com/udhay24/scripts/main/VERSION | tr -d '[:space:]')
-if [ $? -eq 0 ] && [ -n "$REMOTE_VERSION" ]; then
-    mkdir -p "$(dirname "$LOCAL_VERSION_PATH")" # Ensure directory exists
-    echo "$REMOTE_VERSION" > "$LOCAL_VERSION_PATH" || exit 1
-    echo "Stored version: $REMOTE_VERSION"
-else
-    echo "ERROR: Failed to fetch remote version for storage"
-    exit 1
-fi
-
 echo "Resetting git state..."
 git reset --hard || exit 1
 
@@ -94,6 +82,18 @@ npm install || exit 1
 
 echo "Building the application..."
 npm run build || exit 1
+
+# Store remote version directly instead of copying from project
+echo "Fetching and storing remote version to $LOCAL_VERSION_PATH"
+REMOTE_VERSION=$(curl -s https://raw.githubusercontent.com/udhay24/scripts/main/VERSION | tr -d '[:space:]')
+if [ $? -eq 0 ] && [ -n "$REMOTE_VERSION" ]; then
+    mkdir -p "$(dirname "$LOCAL_VERSION_PATH")" # Ensure directory exists
+    echo "$REMOTE_VERSION" > "$LOCAL_VERSION_PATH" || exit 1
+    echo "Stored version: $REMOTE_VERSION"
+else
+    echo "ERROR: Failed to fetch remote version for storage"
+    exit 1
+fi
 
 echo "Starting production server..."
 npm run start:prod || exit 1
