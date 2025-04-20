@@ -237,15 +237,18 @@ cd "$PROJECT_ROOT" || exit 1
 if [ -f package.json ]; then
   echo "Installing Node.js dependencies..."
   echo "$SUDO_PASSWORD" | sudo -S -u codex bash -c "
-    source \$NVM_DIR/nvm.sh
+    export NVM_DIR=\"/home/codex/.nvm\"
+    [ -s \"\$NVM_DIR/nvm.sh\" ] && source \"\$NVM_DIR/nvm.sh\"
+    nvm use --lts
+
     max_retries=2
     attempt=0
 
     cleanup() {
         echo 'Cleaning up npm artifacts...'
-        GLOBAL_NPM_DIR=\$(npm config get prefix 2>/dev/null)/lib/node_modules;
-        SAFE_PKG_NAME=\$(echo \"\$pkg\" | sed 's|@||;s|/|-|'); # handle scoped packages
-        rm -rf \"\$GLOBAL_NPM_DIR/\$pkg\" \"\$GLOBAL_NPM_DIR/.\$SAFE_PKG_NAME\"* || true;
+        GLOBAL_NPM_DIR=\$(npm config get prefix 2>/dev/null)/lib/node_modules
+        SAFE_PKG_NAME=\$(echo \"\$pkg\" | sed 's|@||;s|/|-|')  # handle scoped packages
+        rm -rf \"\$GLOBAL_NPM_DIR/\$pkg\" \"\$GLOBAL_NPM_DIR/.\$SAFE_PKG_NAME\"* || true
         rm -rf node_modules package-lock.json .npm .npmrc
         npm cache clean --force
     }
