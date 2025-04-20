@@ -1,87 +1,71 @@
 #!/bin/bash
-
-# Exit immediately if a command exits with a non-zero status
 set -e
 
-# Define variables
+# --- SECURITY WARNING ---
+SUDO_PASSWORD="codex"  # Replace with your actual password if different
+# --- END WARNING ---
+
+# User enforcement
+if [ "$(whoami)" != "codex" ]; then
+    echo "This script must be run as codex user" >&2
+    exit 1
+fi
+
+# Configuration
 ROOT_DIR="/home/codex/orbit-play"
 DOWNLOAD_URL="https://github.com/bluenviron/mediamtx/releases/download/v1.11.0/mediamtx_v1.11.0_linux_armv7.tar.gz"
-TAR_FILE="mediamtx_v1.11.0_linux_armv7.tar.gz"
+CONFIG_FILE_URL="https://raw.githubusercontent.com/udhay24/scripts/main/mediamtx.yml"
 SERVICE_NAME="orbit-play.service"
 BINARY_NAME="mediamtx"
-CONFIG_FILE_URL="https://raw.githubusercontent.com/udhay24/scripts/main/mediamtx.yml"
-SCRIPT_DIR="$(pwd)"  # Store the current directory where the script is running
 
-# Create the folder from root
-if [ ! -d "$ROOT_DIR" ]; then
-    echo "Creating directory at $ROOT_DIR"
-    sudo mkdir -p "$ROOT_DIR"
-fi
-
-# Change to the directory
+# Create working directory
+mkdir -p "$ROOT_DIR"
 cd "$ROOT_DIR"
 
-# Download the tar.gz file
-if [ ! -f "$TAR_FILE" ]; then
-    echo "Downloading $TAR_FILE"
-    sudo wget "$DOWNLOAD_URL" -O "$TAR_FILE"
+# Download and extract binary
+if [ ! -f "${ROOT_DIR}/${BINARY_NAME}" ]; then
+    echo "Downloading MediaMTX..."
+    wget -q "$DOWNLOAD_URL" -O "${ROOT_DIR}/mediamtx.tar.gz"
+    tar -xzf mediamtx.tar.gz
+    rm mediamtx.tar.gz
 fi
 
-# Extract the content of the tar.gz file
-if [ -f "$TAR_FILE" ]; then
-    echo "Extracting $TAR_FILE"
-    sudo tar -xzf "$TAR_FILE"
-fi
+# Download configuration
+echo "Downloading configuration..."
+wget -q "$CONFIG_FILE_URL" -O "${ROOT_DIR}/mediamtx.yml"
 
-# Download the configuration file from GitHub
-echo "Downloading $CONFIG_FILE_URL from GitHub"
-sudo wget $SERVICE_NAME -O "$ROOT_DIR/$CONFIG_FILE"
-if [ -f "$ROOT_DIR/$CONFIG_FILE" ]; then
-    echo "Configuration file downloaded successfully"
-else
-    echo "Error: Failed to download $CONFIG_FILE!"
-    exit 1
-fi
+# Set permissions
+chmod +x "${ROOT_DIR}/${BINARY_NAME}"
+chmod 644 "${ROOT_DIR}/mediamtx.yml"
 
-# Make the binary executable
-if [ -f "$BINARY_NAME" ]; then
-    echo "Making $BINARY_NAME executable"
-    sudo chmod +x "$BINARY_NAME"
-else
-    echo "Binary $BINARY_NAME not found!"
-    exit 1
-fi
-
-# Create the systemd service file
-SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
-if [ ! -f "$SERVICE_PATH" ]; then
-    echo "Creating systemd service file at $SERVICE_PATH"
-    sudo bash -c "cat > $SERVICE_PATH" <<EOL
+# Create systemd service
+echo "Creating systemd service..."
+echo "$SUDO_PASSWORD" | sudo -S bash -c "cat > /etc/systemd/system/${SERVICE_NAME}" <<EOL
 [Unit]
-Description=MediaMTX Service
+Description=Orbit Play Media Server
 After=network.target
 
 [Service]
-ExecStart=$ROOT_DIR/$BINARY_NAME
+User=codex
+Group=codex
+WorkingDirectory=${ROOT_DIR}
+ExecStart=${ROOT_DIR}/${BINARY_NAME}
 Restart=always
-User=root
-WorkingDirectory=$ROOT_DIR
+RestartSec=5
+Environment="HOME=/home/codex"
 
 [Install]
 WantedBy=multi-user.target
 EOL
-fi
 
-# Reload systemd, enable, and start the service
-echo "Reloading systemd daemon"
-sudo systemctl daemon-reload
+# Systemd management
+echo "Configuring service..."
+{
+    echo "$SUDO_PASSWORD" | sudo -S systemctl daemon-reload
+    echo "$SUDO_PASSWORD" | sudo -S systemctl enable "${SERVICE_NAME}"
+    echo "$SUDO_PASSWORD" | sudo -S systemctl restart "${SERVICE_NAME}"
+} > /dev/null 2>&1
 
-echo "Enabling $SERVICE_NAME"
-sudo systemctl enable "$SERVICE_NAME"
-
-echo "Starting $SERVICE_NAME"
-sudo systemctl start "$SERVICE_NAME"
-
-# Confirm service status
-echo "Checking service status"
-sudo systemctl status "$SERVICE_NAME"
+echo "Installation complete!"
+echo "Service status:"
+echo "$SUDO_PASSWORD" | sudo -S systemctl status "${SERVICE_NAME}" --no-pager
