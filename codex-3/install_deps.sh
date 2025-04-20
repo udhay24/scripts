@@ -265,11 +265,7 @@ if [ -f package.json ]; then
         }
 
         # Local packages
-        npm install || {
-            echo 'Local package installation failed'
-            cleanup
-            continue
-        }
+        npm install
 
         # Build packages
         npm run build || {
