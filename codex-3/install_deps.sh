@@ -117,7 +117,16 @@ uninstall_redis() {
 # Install Redis from official package
 install_redis() {
   echo "Installing Redis..."
-  curl -fsSL https://packages.redis.io/gpg | echo "$SUDO_PASSWORD" | sudo -S gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+  REDIS_KEYRING="/usr/share/keyrings/redis-archive-keyring.gpg"
+
+  echo "Setting up Redis GPG key..."
+  if [ -f "$REDIS_KEYRING" ]; then
+    echo "Redis keyring exists. Overwriting..."
+    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor | echo "$SUDO_PASSWORD" | sudo -S tee "$REDIS_KEYRING" >/dev/null
+  else
+    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor | echo "$SUDO_PASSWORD" | sudo -S tee "$REDIS_KEYRING" >/dev/null
+  fi
+
   echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | echo "$SUDO_PASSWORD" | sudo -S tee /etc/apt/sources.list.d/redis.list >/dev/null
   echo "$SUDO_PASSWORD" | sudo -S apt-get update -y
   echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis || { echo "[ERROR] Failed to install Redis."; exit 1; }
