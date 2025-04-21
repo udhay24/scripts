@@ -172,7 +172,7 @@ if [ -f package.json ]; then
     cleanup() {
         echo 'Cleaning up pnpm artifacts...'
         # Ensure cleanup commands are robust
-        rm -rf node_modules .pnpm-store pnpm-lock.yaml
+        rm -rf node_modules .pnpm-store pnpm-lock.yaml package-lock.json || echo "Warning: cleanup failed, continuing anyway"
         pnpm store prune || echo "Warning: pnpm store prune failed, continuing anyway"
     }
 
