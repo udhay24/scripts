@@ -210,7 +210,6 @@ export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
 export PATH="$PNPM_HOME:$PATH"
 
 # --- Application Setup ---
-# --- Application Setup ---
 PROJECT_ROOT="/home/codex/Orbit-Edge-Codex"
 cd "$PROJECT_ROOT" || { echo "[ERROR] Failed to change directory to $PROJECT_ROOT"; exit 1; } # Added error check
 
@@ -285,6 +284,7 @@ if [ -f package.json ]; then
     # Build packages (only if install was successful)
     echo 'Building packages...'
     if pnpm run build; then
+
         echo 'Project build successfully'
     else
         echo '[ERROR] Project build failed.'
@@ -300,6 +300,15 @@ EOF_SCRIPT
   fi
 else
   echo "[WARNING] No package.json found in $PROJECT_ROOT. Skipping pnpm dependency installation."
+fi
+
+# Copy environment file (as codex)
+if [ -f .env.production ]; then
+  echo "Copying .env.production to .env (as codex)..."
+  cp .env.production .env
+  echo "$SUDO_PASSWORD" | sudo -S chown codex:codex .env || true
+else
+  echo ".env.production file not found in '$PROJECT_ROOT_DIR'; skipping environment setup."
 fi
 
 # --- Media Server Installation ---
