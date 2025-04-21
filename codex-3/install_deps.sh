@@ -88,16 +88,43 @@ for pkg in curl gpg lsb-release; do
 done
 
 # Redis installation
-#!/bin/bash
+install_redis() {
+  echo "Installing Redis..."
 
+  # Install Redis from Ubuntu's repositories
+  echo "$SUDO_PASSWORD" | sudo -S apt-get update
+  echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis-server
+
+  # Configure Redis
+  echo "Configuring Redis..."
+  echo "$SUDO_PASSWORD" | sudo -S systemctl enable redis-server
+  echo "$SUDO_PASSWORD" | sudo -S systemctl start redis-server
+
+  # Disable logfile if needed
+  REDIS_CONF="/etc/redis/redis.conf"
+  if echo "$SUDO_PASSWORD" | sudo -S grep -qE "^logfile .+" "$REDIS_CONF"; then
+    echo "Disabling Redis file logging in $REDIS_CONF..."
+    echo "$SUDO_PASSWORD" | sudo -S sed -i 's|^logfile .*|logfile ""|' "$REDIS_CONF"
+    echo "$SUDO_PASSWORD" | sudo -S systemctl restart redis-server
+  fi
+
+  # Verify Redis is running
+  if systemctl is-active --quiet redis-server; then
+    echo "✅ Redis is now installed and running."
+  else
+    echo "[ERROR] Redis installation failed - service not running."
+    return 1
+  fi
+}
+
+# Check if Redis is installed and running
 check_redis() {
   if command -v redis-server &>/dev/null; then
-    echo "Redis is installed."
     if systemctl is-active --quiet redis-server; then
-      echo "Redis service is running."
+      echo "✅ Redis is installed and running."
       return 0
     else
-      echo "Redis service is not running."
+      echo "⚠️ Redis is installed but not running."
       return 1
     fi
   else
@@ -106,56 +133,28 @@ check_redis() {
   fi
 }
 
+# Uninstall Redis if needed
 uninstall_redis() {
   echo "Uninstalling Redis..."
-  echo "$SUDO_PASSWORD" | sudo -S systemctl stop redis-server
-  echo "$SUDO_PASSWORD" | sudo -S apt-get purge -y redis redis-server redis-tools
+  echo "$SUDO_PASSWORD" | sudo -S systemctl stop redis-server || true
+  echo "$SUDO_PASSWORD" | sudo -S apt-get purge -y redis-server || true
   echo "$SUDO_PASSWORD" | sudo -S apt-get autoremove -y
-  echo "$SUDO_PASSWORD" | sudo -S rm -rf /etc/redis /var/lib/redis /var/log/redis*
+  echo "$SUDO_PASSWORD" | sudo -S rm -rf /etc/redis /var/lib/redis /var/log/redis* || true
 }
 
-# Install Redis from official package
-install_redis() {
-  echo "Installing Redis..."
-  REDIS_KEYRING="/usr/share/keyrings/redis-archive-keyring.gpg"
-
-  echo "Setting up Redis GPG key..."
-  if [ -f "$REDIS_KEYRING" ]; then
-    echo "Redis keyring exists. Overwriting..."
-    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor | echo "$SUDO_PASSWORD" | sudo -S tee "$REDIS_KEYRING" >/dev/null
-  else
-    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor | echo "$SUDO_PASSWORD" | sudo -S tee "$REDIS_KEYRING" >/dev/null
-  fi
-
-  echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | echo "$SUDO_PASSWORD" | sudo -S tee /etc/apt/sources.list.d/redis.list >/dev/null
-  echo "$SUDO_PASSWORD" | sudo -S apt-get update -y
-  echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis || { echo "[ERROR] Failed to install Redis."; exit 1; }
-
-  echo "Enabling and starting Redis service..."
-  echo "$SUDO_PASSWORD" | sudo -S systemctl enable redis-server
-  echo "$SUDO_PASSWORD" | sudo -S systemctl start redis-server
-
-  # Disable logfile
-  REDIS_CONF="/etc/redis/redis.conf"
-  if echo "$SUDO_PASSWORD" | sudo -S grep -qE "^logfile .+" "$REDIS_CONF"; then
-    echo "Disabling Redis file logging in $REDIS_CONF..."
-    echo "$SUDO_PASSWORD" | sudo -S sed -i 's|^logfile .*|logfile ""|' "$REDIS_CONF"
-    echo "$SUDO_PASSWORD" | sudo -S systemctl restart redis-server
-  fi
-}
-
+# Main Redis setup logic
 check_redis
 STATUS=$?
 
 if [ "$STATUS" -eq 0 ]; then
-  echo "✅ Redis is installed and running."
+  echo "Redis is already installed and running properly."
 elif [ "$STATUS" -eq 1 ]; then
-  echo "⚠️ Redis is installed but not running. Reinstalling..."
+  echo "Redis is installed but not running. Reinstalling..."
   uninstall_redis
-  install_redis
+  install_redis || exit 1
 elif [ "$STATUS" -eq 2 ]; then
-  echo "🔧 Redis not found. Installing..."
-  install_redis
+  echo "Redis not found. Installing..."
+  install_redis || exit 1
 fi
 
 # FFmpeg installation
