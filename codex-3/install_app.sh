@@ -55,20 +55,26 @@ else
 fi
 git config --global --add safe.directory "$PROJECT_DIR"
 
+## === Repository Logic ===
+#if [ -d "$PROJECT_DIR/.git" ]; then
+#  echo "[INFO] Found existing repo. Verifying..." | tee -a "$LOG_FILE"
+#  cd "$PROJECT_DIR"
+#  if ! git fsck --full > /dev/null 2>&1; then
+#    echo "[WARNING] Repository is corrupted. Deleting..." | tee -a "$LOG_FILE"
+#    rm -rf "$PROJECT_DIR"
+#  else
+#    echo "[INFO] Repository healthy. Pulling latest changes..." | tee -a "$LOG_FILE"
+#    git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1
+#    git reset --hard origin/"$BRANCH" >> "$LOG_FILE" 2>&1
+#    echo "[SUCCESS] Repository updated." | tee -a "$LOG_FILE"
+#    REPO_READY=true
+#  fi
+#fi
+
 # === Repository Logic ===
 if [ -d "$PROJECT_DIR/.git" ]; then
-  echo "[INFO] Found existing repo. Verifying..." | tee -a "$LOG_FILE"
-  cd "$PROJECT_DIR"
-  if ! git fsck --full > /dev/null 2>&1; then
-    echo "[WARNING] Repository is corrupted. Deleting..." | tee -a "$LOG_FILE"
-    rm -rf "$PROJECT_DIR"
-  else
-    echo "[INFO] Repository healthy. Pulling latest changes..." | tee -a "$LOG_FILE"
-    git fetch origin "$BRANCH" >> "$LOG_FILE" 2>&1
-    git reset --hard origin/"$BRANCH" >> "$LOG_FILE" 2>&1
-    echo "[SUCCESS] Repository updated." | tee -a "$LOG_FILE"
-    REPO_READY=true
-  fi
+  echo "[INFO] Found existing repo. Deleting..." | tee -a "$LOG_FILE"
+  rm -rf "$PROJECT_DIR"
 fi
 
 # === Clone if not ready ===
