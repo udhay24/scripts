@@ -126,11 +126,6 @@ run_start_prod() {
     echo "Current EXIT_LOG after adding new entry:" | tee -a "$LOG_START"
     cat "$EXIT_LOG" | tee -a "$LOG_START"
 
-    # Force recovery for testing - comment out later
-    echo "Forcing recovery for testing" | tee -a "$LOG_START"
-
-    # For immediate testing, you can force recovery with:
-    # if true; then
     if check_exits; then
       {
         echo "--- CRITICAL SERVICE FAILURE ---"
@@ -138,26 +133,53 @@ run_start_prod() {
         echo "Initiating recovery at $(date)"
       } | tee -a "$ERROR_LOG" "$LOG_START"
 
-      # Directly perform recovery without spawning a background process
-      echo "Stopping service..." | tee -a "$ERROR_LOG" "$LOG_START"
-      sudo systemctl stop orbit-edge-codex.service
+      # Create a separate recovery script
+      RECOVERY_SCRIPT="/tmp/codex_recovery_$TIMESTAMP.sh"
+      cat > "$RECOVERY_SCRIPT" << 'EOF'
+#!/bin/bash
+RECOVERY_LOG="/home/codex/recovery.log"
 
-      echo "Running reinstallation..." | tee -a "$ERROR_LOG" "$LOG_START"
-      echo "Rebuilding the application..." | tee -a "$ERROR_LOG" "$LOG_START"
+{
+  echo "=== RECOVERY SCRIPT STARTED AT $(date) ==="
+  echo "Waiting 5 seconds before proceeding..."
+  sleep 5
 
-      # Do a clean build
-      cd "$PROJECT_DIR" || return 1
-      echo "Cleaning and rebuilding..." | tee -a "$ERROR_LOG" "$LOG_START"
-      rm -rf node_modules pnpm-lock.yaml dist | tee -a "$ERROR_LOG" "$LOG_START"
-      pnpm install | tee -a "$ERROR_LOG" "$LOG_START"
-      pnpm run build | tee -a "$ERROR_LOG" "$LOG_START"
+  echo "Stopping orbit-edge-codex service..."
+  sudo systemctl stop orbit-edge-codex.service
 
-      echo "Restarting service..." | tee -a "$ERROR_LOG" "$LOG_START"
-      sudo systemctl restart orbit-edge-codex.service
+  echo "Changing to project directory..."
+  cd /home/codex/Orbit-Edge-Codex || exit 1
 
-      # Exit this script after recovery
-      echo "Recovery completed. Exiting script." | tee -a "$ERROR_LOG" "$LOG_START"
-      exit 0
+  echo "Cleaning build artifacts..."
+  rm -rf node_modules pnpm-lock.yaml dist
+
+  echo "Installing dependencies..."
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+  pnpm install
+
+  echo "Building application..."
+  pnpm run build
+
+  echo "Restarting service..."
+  sudo systemctl start orbit-edge-codex.service
+
+  echo "Recovery completed at $(date)"
+} >> "$RECOVERY_LOG" 2>&1
+EOF
+
+      # Make the recovery script executable
+      chmod +x "$RECOVERY_SCRIPT"
+
+      # Launch the recovery script in a way that won't be killed when the service stops
+      echo "Launching independent recovery script: $RECOVERY_SCRIPT" | tee -a "$ERROR_LOG" "$LOG_START"
+      sudo nohup "$RECOVERY_SCRIPT" >/dev/null 2>&1 &
+
+      # Exit with failure to allow service to restart cleanly
+      echo "Exiting with failure code to allow recovery script to take over" | tee -a "$ERROR_LOG" "$LOG_START"
+      exit 1
     else
       echo "Not enough failures detected to trigger recovery." | tee -a "$LOG_START"
     fi
