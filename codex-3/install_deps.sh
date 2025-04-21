@@ -247,6 +247,8 @@ if [ -f package.json ]; then
         pnpm store prune || echo "Warning: pnpm store prune failed, continuing anyway"
     }
 
+    cleanup
+
     while [ $attempt -lt $max_retries ]; do
         ((attempt++))
         echo "Installation attempt $attempt/$max_retries"
