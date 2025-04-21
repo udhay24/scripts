@@ -118,6 +118,17 @@ install_redis() {
     echo "[ERROR] Failed to install Redis."; exit 1;
   }
 
+  # Disable Redis log file (uses sudo -S)
+  REDIS_CONF="/etc/redis/redis.conf"
+  # Use sudo -S with grep first to check condition
+  if echo "$SUDO_PASSWORD" | sudo -S grep -qE "^logfile .+" "$REDIS_CONF"; then
+      echo "Disabling Redis file logging in $REDIS_CONF (requires sudo)..."
+      echo "$SUDO_PASSWORD" | sudo -S sed -i 's|^logfile .*|logfile ""|' "$REDIS_CONF"
+      echo "$SUDO_PASSWORD" | sudo -S systemctl restart redis-server
+  else
+      echo "Redis file logging already disabled or not configured in $REDIS_CONF."
+  fi
+
   # Enable Redis
   echo "$SUDO_PASSWORD" | sudo -S systemctl enable redis-server
   echo "$SUDO_PASSWORD" | sudo -S systemctl start redis-server
