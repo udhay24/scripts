@@ -138,67 +138,98 @@ export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
 export PATH="$PNPM_HOME:$PATH"
 
 # --- Application Setup ---
+# --- Application Setup ---
 PROJECT_ROOT="/home/codex/Orbit-Edge-Codex"
-cd "$PROJECT_ROOT" || exit 1
+cd "$PROJECT_ROOT" || { echo "[ERROR] Failed to change directory to $PROJECT_ROOT"; exit 1; } # Added error check
 
 if [ -f package.json ]; then
   echo "Installing Node.js dependencies with pnpm..."
-  echo "$SUDO_PASSWORD" | sudo -S -u codex bash -c "
-    export NVM_DIR=\"/home/codex/.nvm\"
-    [ -s \"\$NVM_DIR/nvm.sh\" ] && source \"\$NVM_DIR/nvm.sh\"
-    nvm use --lts
+  # Use a here-document to execute the script as user 'codex' via sudo
+  echo "$SUDO_PASSWORD" | sudo -S -u codex bash << 'EOF_SCRIPT'
+    # The script content goes here, with proper indentation is optional but good practice
+
+    export NVM_DIR="/home/codex/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # Use '\.' or 'source' with space for portability
+    nvm use --lts || { echo "Failed to use LTS node version"; exit 1; } # Added error check
 
     # Add pnpm environment setup
-    export PNPM_HOME=\"/home/codex/.local/share/pnpm\"
-    export PATH=\"\$PNPM_HOME:\$PATH\"
+    export PNPM_HOME="/home/codex/.local/share/pnpm"
+    export PATH="$PNPM_HOME:$PATH"
+
+    # Verify pnpm is in PATH
+    if ! command -v pnpm &> /dev/null; then
+        echo "pnpm command not found after setup."
+        exit 1
+    fi
+    echo "pnpm found at: $(command -v pnpm)"
+    echo "Current PATH: $PATH"
+
 
     max_retries=2
     attempt=0
+    install_success=0
 
     cleanup() {
         echo 'Cleaning up pnpm artifacts...'
+        # Ensure cleanup commands are robust
         rm -rf node_modules .pnpm-store pnpm-lock.yaml
         pnpm store prune || echo "Warning: pnpm store prune failed, continuing anyway"
     }
 
-    while [ \$attempt -lt \$max_retries ]; do
+    cleanup
+
+    while [ $attempt -lt $max_retries ]; do
         ((attempt++))
-        echo \"Installation attempt \$attempt/\$max_retries\"
+        echo "Installation attempt $attempt/$max_retries"
 
         # Global packages
-        pnpm add -g husky is-ci @nestjs/cli rimraf || {
-            echo 'Global package installation failed'
+        echo "Installing global packages..."
+        if pnpm add -g husky is-ci @nestjs/cli rimraf; then
+            echo "Global packages installed successfully."
+        else
+            echo 'Global package installation failed.'
             cleanup
-            continue
-        }
+            continue # Try again
+        fi
 
         # Local packages
-        pnpm install || {
-            echo 'Local package installation failed'
+        echo "Installing local dependencies..."
+        if pnpm install; then
+            echo 'Local package installation successful.'
+            install_success=1
+            break # Exit loop on success
+        else
+            echo 'Local package installation failed.'
             cleanup
-            continue
-        }
-
-        # Build packages
-        echo 'Building packages...'
-        pnpm run build && {
-            echo 'Project build successfully'
-            break
-        }
-
-        # Cleanup if installation failed
-        echo 'pnpm install failed, cleaning up...'
-        cleanup
-
-        if [ \$attempt -eq \$max_retries ]; then
-            echo 'Maximum installation attempts reached. Critical failure.'
-            exit 1
+            continue # Try again
         fi
     done
-  " || {
+
+    # Check if installation was successful after the loop
+    if [ $install_success -eq 0 ]; then
+        echo 'Maximum installation attempts reached. Critical failure.'
+        exit 1
+    fi
+
+
+    # Build packages (only if install was successful)
+    echo 'Building packages...'
+    if pnpm run build; then
+        echo 'Project build successfully'
+    else
+        echo '[ERROR] Project build failed.'
+        exit 1 # Exit if build fails
+    fi
+
+EOF_SCRIPT
+
+  # Check the exit status of the here-document script
+  if [ $? -ne 0 ]; then
     echo "[FATAL] Failed to install pnpm dependencies after multiple attempts"
     exit 1
-  }
+  fi
+else
+  echo "[WARNING] No package.json found in $PROJECT_ROOT. Skipping pnpm dependency installation."
 fi
 
 # --- Media Server Installation ---
