@@ -105,33 +105,61 @@ check_exits() {
 }
 
 run_start_prod() {
-  echo "Starting production server..."
+  echo "Starting production server..." | tee -a "$LOG_START"
   cd "$PROJECT_DIR" || return 1
-  pnpm run start:prod
-  EXIT_CODE=$?
+
+  # Log the attempt
+  echo "$(date): Attempting to start production server from $(pwd)" | tee -a "$LOG_START"
+
+  # Run the start command with error output capture
+  pnpm run start:prod 2>&1 | tee -a "$LOG_START"
+  EXIT_CODE=${PIPESTATUS[0]}
+
+  echo "Command exited with code: $EXIT_CODE" | tee -a "$LOG_START"
 
   if [ $EXIT_CODE -ne 0 ]; then
-    echo "$(date +%s)" >> "$EXIT_LOG"
+    TIMESTAMP=$(date +%s)
+    echo "$TIMESTAMP" >> "$EXIT_LOG"
+    echo "$(date): Service exited with code $EXIT_CODE. Adding timestamp to EXIT_LOG." | tee -a "$ERROR_LOG" "$LOG_START"
 
+    # Show current EXIT_LOG content
+    echo "Current EXIT_LOG after adding new entry:" | tee -a "$LOG_START"
+    cat "$EXIT_LOG" | tee -a "$LOG_START"
+
+    # Force recovery for testing - comment out later
+    echo "Forcing recovery for testing" | tee -a "$LOG_START"
+
+    # For immediate testing, you can force recovery with:
+    # if true; then
     if check_exits; then
       {
         echo "--- CRITICAL SERVICE FAILURE ---"
         echo "Service exited 3 times within 5 minutes"
         echo "Initiating recovery at $(date)"
-      } >> "$ERROR_LOG"
+      } | tee -a "$ERROR_LOG" "$LOG_START"
 
-      # Spawn recovery process
-      (
-        echo "Stopping service..." >> "$ERROR_LOG"
-        echo "codex" | sudo -S systemctl stop orbit-edge-codex.service
+      # Directly perform recovery without spawning a background process
+      echo "Stopping service..." | tee -a "$ERROR_LOG" "$LOG_START"
+      sudo systemctl stop orbit-edge-codex.service
 
-        echo "Running reinstallation..." >> "$ERROR_LOG"
-        bash -c 'wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/codex-3/install_app.sh | bash' >> "$ERROR_LOG" 2>&1
+      echo "Running reinstallation..." | tee -a "$ERROR_LOG" "$LOG_START"
+      echo "Rebuilding the application..." | tee -a "$ERROR_LOG" "$LOG_START"
 
-        echo "Killing parent process..." >> "$ERROR_LOG"
-        echo "codex" | sudo -S systemctl disable orbit-edge-codex.service
-        kill -9 $$
-      ) &
+      # Do a clean build
+      cd "$PROJECT_DIR" || return 1
+      echo "Cleaning and rebuilding..." | tee -a "$ERROR_LOG" "$LOG_START"
+      rm -rf node_modules pnpm-lock.yaml dist | tee -a "$ERROR_LOG" "$LOG_START"
+      pnpm install | tee -a "$ERROR_LOG" "$LOG_START"
+      pnpm run build | tee -a "$ERROR_LOG" "$LOG_START"
+
+      echo "Restarting service..." | tee -a "$ERROR_LOG" "$LOG_START"
+      sudo systemctl restart orbit-edge-codex.service
+
+      # Exit this script after recovery
+      echo "Recovery completed. Exiting script." | tee -a "$ERROR_LOG" "$LOG_START"
+      exit 0
+    else
+      echo "Not enough failures detected to trigger recovery." | tee -a "$LOG_START"
     fi
     return 1
   fi
