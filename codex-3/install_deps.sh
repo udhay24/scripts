@@ -237,7 +237,7 @@ if [ -f package.json ]; then
     echo "Current PATH: $PATH"
 
 
-    max_retries=2
+    max_retries=3
     attempt=0
     install_success=0
 
