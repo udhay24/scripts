@@ -89,24 +89,38 @@ done
 
 # Redis installation
 install_redis() {
-  echo "Installing Redis..."
+  REDIS_KEYRING="/usr/share/keyrings/redis-archive-keyring.gpg"
+  REDIS_LIST="/etc/apt/sources.list.d/redis.list"
 
-  # Install Redis from Ubuntu's repositories
-  echo "$SUDO_PASSWORD" | sudo -S apt-get update
-  echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis-server
+  # Fix malformed Redis APT source file, if any
+  if [ -f "$REDIS_LIST" ]; then
+    echo "[INFO] Removing malformed Redis source list..."
+    echo "$SUDO_PASSWORD" | sudo -S rm -f "$REDIS_LIST"
+  fi
 
-  # Configure Redis
-  echo "Configuring Redis..."
+  # Fix GPG key writing using tee, not broken piping
+  echo "[INFO] Installing Redis GPG key..."
+  curl -fsSL https://packages.redis.io/gpg | gpg --dearmor | sudo tee "$REDIS_KEYRING" >/dev/null || {
+    echo "[ERROR] Failed to install GPG key"; exit 1;
+  }
+
+  # Now add correct Redis source list
+  echo "[INFO] Writing proper Redis source entry..."
+  DISTRO=$(lsb_release -cs)
+  echo "deb [signed-by=$REDIS_KEYRING] https://packages.redis.io/deb $DISTRO main" | sudo tee "$REDIS_LIST" >/dev/null || {
+    echo "[ERROR] Failed to write Redis source list"; exit 1;
+  }
+
+  # Install Redis from updated repo
+  echo "[INFO] Updating APT and installing Redis..."
+  echo "$SUDO_PASSWORD" | sudo -S apt-get update -y
+  echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis || {
+    echo "[ERROR] Failed to install Redis."; exit 1;
+  }
+
+  # Enable Redis
   echo "$SUDO_PASSWORD" | sudo -S systemctl enable redis-server
   echo "$SUDO_PASSWORD" | sudo -S systemctl start redis-server
-
-  # Disable logfile if needed
-  REDIS_CONF="/etc/redis/redis.conf"
-  if echo "$SUDO_PASSWORD" | sudo -S grep -qE "^logfile .+" "$REDIS_CONF"; then
-    echo "Disabling Redis file logging in $REDIS_CONF..."
-    echo "$SUDO_PASSWORD" | sudo -S sed -i 's|^logfile .*|logfile ""|' "$REDIS_CONF"
-    echo "$SUDO_PASSWORD" | sudo -S systemctl restart redis-server
-  fi
 
   # Verify Redis is running
   if systemctl is-active --quiet redis-server; then
