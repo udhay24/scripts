@@ -136,8 +136,8 @@ run_start_prod() {
       # Create a separate recovery script
       RECOVERY_SCRIPT="/tmp/codex_recovery_$TIMESTAMP.sh"
       cat > "$RECOVERY_SCRIPT" << 'EOF'
-#!/bin/bash
-RECOVERY_LOG="/home/codex/recovery.log"
+      #!/bin/bash
+      RECOVERY_LOG="/home/codex/recovery.log"
 
 {
   echo "=== RECOVERY SCRIPT STARTED AT $(date) ==="
@@ -145,7 +145,7 @@ RECOVERY_LOG="/home/codex/recovery.log"
   sleep 5
 
   echo "Stopping orbit-edge-codex service..."
-  sudo systemctl stop orbit-edge-codex.service
+  echo "codex" | sudo -S systemctl stop orbit-edge-codex.service
 
   echo "Changing to project directory..."
   cd /home/codex/Orbit-Edge-Codex || exit 1
@@ -164,7 +164,7 @@ RECOVERY_LOG="/home/codex/recovery.log"
   pnpm run build
 
   echo "Restarting service..."
-  sudo systemctl start orbit-edge-codex.service
+  echo "codex" | sudo -S systemctl start orbit-edge-codex.service
 
   echo "Recovery completed at $(date)"
 } >> "$RECOVERY_LOG" 2>&1
