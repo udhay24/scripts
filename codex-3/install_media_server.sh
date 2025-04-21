@@ -12,6 +12,12 @@ CONFIG_FILE_URL="https://raw.githubusercontent.com/udhay24/scripts/main/mediamtx
 SERVICE_NAME="orbit-play.service"
 BINARY_NAME="mediamtx"
 
+# Check if directory exists
+if [ -d "$ROOT_DIR" ]; then
+  echo "Directory already exists. Deleting..."
+  rm -rf "$ROOT_DIR"
+fi
+
 # Create working directory
 mkdir -p "$ROOT_DIR"
 cd "$ROOT_DIR"
