@@ -88,26 +88,65 @@ for pkg in curl gpg lsb-release; do
 done
 
 # Redis installation
-if ! command -v redis-server &>/dev/null; then
+#!/bin/bash
+
+check_redis() {
+  if command -v redis-server &>/dev/null; then
+    echo "Redis is installed."
+    if systemctl is-active --quiet redis-server; then
+      echo "Redis service is running."
+      return 0
+    else
+      echo "Redis service is not running."
+      return 1
+    fi
+  else
+    echo "Redis is not installed."
+    return 2
+  fi
+}
+
+uninstall_redis() {
+  echo "Uninstalling Redis..."
+  echo "$SUDO_PASSWORD" | sudo -S systemctl stop redis-server
+  echo "$SUDO_PASSWORD" | sudo -S apt-get purge -y redis redis-server redis-tools
+  echo "$SUDO_PASSWORD" | sudo -S apt-get autoremove -y
+  echo "$SUDO_PASSWORD" | sudo -S rm -rf /etc/redis /var/lib/redis /var/log/redis*
+}
+
+# Install Redis from official package
+install_redis() {
   echo "Installing Redis..."
   curl -fsSL https://packages.redis.io/gpg | echo "$SUDO_PASSWORD" | sudo -S gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
   echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | echo "$SUDO_PASSWORD" | sudo -S tee /etc/apt/sources.list.d/redis.list >/dev/null
   echo "$SUDO_PASSWORD" | sudo -S apt-get update -y
-  echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis || exit 1
-  if [ $? -ne 0 ]; then echo "[ERROR] Failed to install Redis."; exit 1; fi
-      echo "Enabling Redis service (requires sudo)..."
-      echo "$SUDO_PASSWORD" | sudo -S systemctl enable redis-server
-      echo "$SUDO_PASSWORD" | sudo -S systemctl start redis-server
-  # Disable Redis log file (uses sudo -S)
+  echo "$SUDO_PASSWORD" | sudo -S apt-get install -y redis || { echo "[ERROR] Failed to install Redis."; exit 1; }
+
+  echo "Enabling and starting Redis service..."
+  echo "$SUDO_PASSWORD" | sudo -S systemctl enable redis-server
+  echo "$SUDO_PASSWORD" | sudo -S systemctl start redis-server
+
+  # Disable logfile
   REDIS_CONF="/etc/redis/redis.conf"
-  # Use sudo -S with grep first to check condition
   if echo "$SUDO_PASSWORD" | sudo -S grep -qE "^logfile .+" "$REDIS_CONF"; then
-      echo "Disabling Redis file logging in $REDIS_CONF (requires sudo)..."
-      echo "$SUDO_PASSWORD" | sudo -S sed -i 's|^logfile .*|logfile ""|' "$REDIS_CONF"
-      echo "$SUDO_PASSWORD" | sudo -S systemctl restart redis-server
-  else
-      echo "Redis file logging already disabled or not configured in $REDIS_CONF."
+    echo "Disabling Redis file logging in $REDIS_CONF..."
+    echo "$SUDO_PASSWORD" | sudo -S sed -i 's|^logfile .*|logfile ""|' "$REDIS_CONF"
+    echo "$SUDO_PASSWORD" | sudo -S systemctl restart redis-server
   fi
+}
+
+check_redis
+STATUS=$?
+
+if [ "$STATUS" -eq 0 ]; then
+  echo "✅ Redis is installed and running."
+elif [ "$STATUS" -eq 1 ]; then
+  echo "⚠️ Redis is installed but not running. Reinstalling..."
+  uninstall_redis
+  install_redis
+elif [ "$STATUS" -eq 2 ]; then
+  echo "🔧 Redis not found. Installing..."
+  install_redis
 fi
 
 # FFmpeg installation
