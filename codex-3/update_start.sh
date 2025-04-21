@@ -179,6 +179,7 @@ EOF
 
       # Exit with failure to allow service to restart cleanly
       echo "Exiting with failure code to allow recovery script to take over" | tee -a "$ERROR_LOG" "$LOG_START"
+      sudo systemctl stop orbit-edge-codex.service
       exit 1
     else
       echo "Not enough failures detected to trigger recovery." | tee -a "$LOG_START"
