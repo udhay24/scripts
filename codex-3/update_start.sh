@@ -59,23 +59,49 @@ check_versions() {
 
 # Exit monitoring functions
 check_exits() {
+  echo "Running check_exits function..." >> "$LOG_START"
+
   current_time=$(date +%s)
   five_minutes_ago=$((current_time - 300))
 
-  # Clean old entries
-  if [ -f "$EXIT_LOG" ]; then
-    temp_file=$(mktemp)
-    awk -v cutoff=$five_minutes_ago '$1 > cutoff' "$EXIT_LOG" > "$temp_file"
-    mv "$temp_file" "$EXIT_LOG"
+  # Debug information
+  echo "Current time: $current_time, Five minutes ago: $five_minutes_ago" >> "$LOG_START"
+
+  # Check if log file exists
+  if [ ! -f "$EXIT_LOG" ]; then
+    echo "Exit log file doesn't exist yet. Creating it." >> "$LOG_START"
+    touch "$EXIT_LOG"
+    echo "0" >> "$EXIT_LOG"  # Initial entry
   fi
+
+  # Debug - show current log content
+  echo "Current EXIT_LOG content:" >> "$LOG_START"
+  cat "$EXIT_LOG" >> "$LOG_START"
+
+  # Filter entries within the last 5 minutes
+  temp_file=$(mktemp)
+  while read -r timestamp; do
+    if [[ -n "$timestamp" && "$timestamp" =~ ^[0-9]+$ && "$timestamp" -gt "$five_minutes_ago" ]]; then
+      echo "$timestamp" >> "$temp_file"
+    fi
+  done < "$EXIT_LOG"
+
+  # Replace original with filtered content
+  cat "$temp_file" > "$EXIT_LOG"
+  rm "$temp_file"
 
   # Count remaining entries
-  count=0
-  if [ -f "$EXIT_LOG" ]; then
-    count=$(wc -l < "$EXIT_LOG")
-  fi
+  count=$(grep -c "^[0-9]" "$EXIT_LOG")
 
-  [ $count -ge 3 ] && return 0 || return 1
+  echo "Recent exit count (last 5 minutes): $count" >> "$LOG_START"
+
+  if [ "$count" -ge 3 ]; then
+    echo "Detected 3 or more exits in the last 5 minutes" >> "$LOG_START"
+    return 0
+  else
+    echo "Less than 3 exits detected in the last 5 minutes" >> "$LOG_START"
+    return 1
+  fi
 }
 
 run_start_prod() {
@@ -103,6 +129,7 @@ run_start_prod() {
         bash -c 'wget -qO- https://raw.githubusercontent.com/udhay24/scripts/main/codex-3/install_app.sh | bash' >> "$ERROR_LOG" 2>&1
 
         echo "Killing parent process..." >> "$ERROR_LOG"
+        echo "codex" | sudo -S systemctl disable orbit-edge-codex.service
         kill -9 $$
       ) &
     fi
