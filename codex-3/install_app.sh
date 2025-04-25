@@ -122,16 +122,18 @@ else
 fi
 
 # === MAC Address ===
-echo "[INFO] Retrieving MAC address..." | tee -a "$LOG_FILE"
-MAC_ADDRESS=$(ip link show | awk '/ether/ {print $2}' | head -n 1)
-if [ -z "$MAC_ADDRESS" ]; then
-  MAC_ADDRESS=$(cat /sys/class/net/$(ip route show default | awk '/default/ {print $5}')/address)
-fi
-if [ -n "$MAC_ADDRESS" ]; then
-  echo "[SUCCESS] MAC Address: $MAC_ADDRESS" | tee -a "$LOG_FILE"
+echo "[INFO] Executing mac_test.js script..." | tee -a "$LOG_FILE"
+if [ -f "$PROJECT_DIR/playground/mac_test.js" ]; then
+  if command -v node &> /dev/null; then
+    MAC_TEST_OUTPUT=$(node "$PROJECT_DIR/playground/mac_test.js" 2>&1)
+    echo "[OUTPUT] mac_test.js: $MAC_TEST_OUTPUT" | tee -a "$LOG_FILE"
+  else
+    echo "[ERROR] Node.js is not installed. Cannot run mac_test.js." | tee -a "$LOG_FILE"
+  fi
 else
-  echo "[ERROR] Failed to retrieve MAC address." | tee -a "$LOG_FILE"
+  echo "[ERROR] mac_test.js not found at expected path: $PROJECT_DIR/playground/mac_test.js" | tee -a "$LOG_FILE"
 fi
+
 
 echo "[INFO] install_app.sh completed." | tee -a "$LOG_FILE"
 exit 0
